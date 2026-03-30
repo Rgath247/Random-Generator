@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<link rel="manifest" href="manifest.json">
+
+<meta charset="UTF-8">
+<title>Random Generator</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: white;
+
+    background: linear-gradient(270deg, #0a84ff, #bf5af2, #30d158, #ff453a);
+    background-size: 800% 800%;
+    animation: gradientShift 20s ease infinite;
+}
+@keyframes gradientShift {
+    0% {background-position:0% 50%;}
+    50% {background-position:100% 50%;}
+    100% {background-position:0% 50%;}
+}
+
+.container {
+    text-align: center;
+    width: 100%;
+    max-width: 700px;
+}
+
+#output {
+    margin: 20px;
+    padding: 15px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.common {}
+.rare {
+    box-shadow: 0 0 15px #0a84ff;
+}
+.legendary {
+    box-shadow: 0 0 25px gold, 0 0 50px rgba(255,215,0,0.6);
+    transform: scale(1.05);
+}
+
+.buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+button {
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+}
+
+.settings {
+    display: none;
+    margin-top: 10px;
+    background: rgba(0,0,0,0.5);
+    padding: 10px;
+    border-radius: 10px;
+}
+
+textarea {
+    width: 100%;
+    height: 120px;
+    margin-top: 10px;
+}
+
+.hidden { display:none; }
+
+.confetti {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    top: -10px;
+    animation: fall linear forwards;
+}
+
+@keyframes fall {
+    to { transform: translateY(100vh) rotate(360deg); }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1 contenteditable="true">Random Generator</h1>
+
+<div id="output">Tap Generate</div>
+
+<div class="buttons">
+<button onclick="generate()">Generate</button>
+<button onclick="resetList()">Reset</button>
+<button onclick="saveList()">Save</button>
+<button onclick="exportList()">Export</button>
+<button onclick="document.getElementById('fileInput').click()">Import</button>
+<button onclick="toggleEditor()">Hide List</button>
+<button onclick="toggleSettings()">⚙️</button>
+</div>
+
+<div id="settings" class="settings">
+<label><input type="checkbox" id="soundToggle" checked> Sound</label><br>
+<label><input type="checkbox" id="hapticToggle" checked> Haptics</label><br>
+<label><input type="checkbox" id="noRepeatToggle"> Remove After Pick</label><br>
+<label>Speed:
+<input type="range" id="speed" min="40" max="200" value="80">
+</label>
+</div>
+
+<textarea id="editor"></textarea>
+
+<input type="file" id="fileInput" style="display:none">
+
+</div>
+
+<script>
+let items=[];
+let availableItems=[];
+
+/* Parse rarity */
+function parseList(text){
+    return text.split("\n").map(line=>{
+        const parts=line.split("|");
+        return {
+            text: parts[0].trim(),
+            rarity: parts[1]?.trim().toLowerCase() || "common"
+        };
+    }).filter(x=>x.text);
+}
+
+/* Generate */
+let spinning=false;
+
+function generate(){
+    if(spinning) return;
+
+    if(!availableItems.length){
+        items=parseList(document.getElementById("editor").value);
+        availableItems=[...items];
+    }
+
+    if(!availableItems.length) return;
+
+    spinning=true;
+
+    const speed=document.getElementById("speed").value;
+
+    let cycles=15;
+    let interval=setInterval(()=>{
+        const rand=availableItems[Math.floor(Math.random()*availableItems.length)];
+        output(rand,false);
+        playClick();
+        cycles--;
+
+        if(cycles<=0){
+            clearInterval(interval);
+
+            const index=Math.floor(Math.random()*availableItems.length);
+            const choice=availableItems[index];
+
+            if(document.getElementById("noRepeatToggle").checked){
+                availableItems.splice(index,1);
+            }
+
+            output(choice,true);
+
+            playWin();
+            haptic();
+
+            if(choice.rarity==="legendary") confettiBurst();
+
+            spinning=false;
+        }
+    },speed);
+}
+
+function output(item,final){
+    const el=document.getElementById("output");
+    el.textContent=item.text;
+
+    el.className="";
+    if(final){
+        el.classList.add(item.rarity);
+    }
+}
+
+/* Confetti */
+function confettiBurst(){
+    for(let i=0;i<60;i++){
+        const c=document.createElement("div");
+        c.className="confetti";
+        c.style.left=Math.random()*100+"vw";
+        c.style.background=`hsl(${Math.random()*360},100%,50%)`;
+        c.style.animationDuration=(Math.random()*2+1)+"s";
+        document.body.appendChild(c);
+        setTimeout(()=>c.remove(),3000);
+    }
+}
+
+/* Buttons */
+function resetList(){
+    document.getElementById("editor").value="";
+    availableItems=[];
+}
+function saveList(){
+    localStorage.setItem("list",document.getElementById("editor").value);
+}
+function exportList(){
+    const blob=new Blob([document.getElementById("editor").value]);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="list.txt";
+    a.click();
+}
+document.getElementById("fileInput").addEventListener("change",e=>{
+    const reader=new FileReader();
+    reader.onload=()=>document.getElementById("editor").value=reader.result;
+    reader.readAsText(e.target.files[0]);
+});
+function toggleEditor(){
+    document.getElementById("editor").classList.toggle("hidden");
+}
+function toggleSettings(){
+    const s=document.getElementById("settings");
+    s.style.display=s.style.display==="block"?"none":"block";
+}
+
+/* Sound */
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+function playClick(){
+    if(!document.getElementById("soundToggle").checked) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.value=400; g.gain.value=0.02;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.03);
+}
+function playWin(){
+    if(!document.getElementById("soundToggle").checked) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.value=800; g.gain.value=0.03;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.2);
+}
+
+/* Haptics */
+function haptic(){
+    if(!document.getElementById("hapticToggle").checked) return;
+    if(navigator.vibrate) navigator.vibrate(15);
+}
+
+/* Load */
+window.onload=()=>{
+    const saved=localStorage.getItem("list");
+    if(saved) document.getElementById("editor").value=saved;
+};
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
