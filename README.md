@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<link rel="manifest" href="manifest.json">
-
 <meta charset="UTF-8">
 <title>Random Generator</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 
 <style>
 body {
@@ -18,21 +17,52 @@ body {
     align-items: center;
     min-height: 100vh;
     color: white;
+    overflow: hidden;
 
     background: linear-gradient(270deg, #0a84ff, #bf5af2, #30d158, #ff453a);
     background-size: 800% 800%;
     animation: gradientShift 20s ease infinite;
 }
+
 @keyframes gradientShift {
     0% {background-position:0% 50%;}
     50% {background-position:100% 50%;}
     100% {background-position:0% 50%;}
 }
 
+/* PARTICLES */
+#particles {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    opacity: 0.5;
+    animation: float linear infinite;
+}
+
+@keyframes float {
+    from { transform: translateY(100vh); }
+    to { transform: translateY(-10vh); }
+}
+
+/* MAIN UI */
 .container {
     text-align: center;
     width: 100%;
     max-width: 700px;
+    position: relative;
+    z-index: 1;
 }
 
 #output {
@@ -97,6 +127,9 @@ textarea {
 
 <body>
 
+<!-- ✅ PARTICLES CONTAINER -->
+<div id="particles"></div>
+
 <div class="container">
 
 <h1 contenteditable="true">Random Generator</h1>
@@ -131,6 +164,25 @@ textarea {
 <script>
 let items=[];
 let availableItems=[];
+
+/* PARTICLES (calm version) */
+function createParticles() {
+    const container = document.getElementById("particles");
+
+    setInterval(() => {
+        const p = document.createElement("div");
+        p.className = "particle";
+
+        p.style.left = Math.random() * 100 + "vw";
+        p.style.background = `hsl(${Math.random()*360}, 70%, 70%)`;
+        p.style.animationDuration = (Math.random() * 8 + 8) + "s";
+
+        container.appendChild(p);
+
+        setTimeout(() => p.remove(), 12000);
+    }, 300);
+}
+createParticles();
 
 /* Parse rarity */
 function parseList(text){
@@ -268,6 +320,8 @@ window.onload=()=>{
     const saved=localStorage.getItem("list");
     if(saved) document.getElementById("editor").value=saved;
 };
+
+/* Service Worker */
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js");
 }
